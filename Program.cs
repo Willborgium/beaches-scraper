@@ -1,6 +1,5 @@
 ﻿using BeachesScraper.Models;
 using BeachesScraper.Contracts;
-using Newtonsoft.Json;
 
 namespace BeachesScraper
 {
@@ -32,12 +31,12 @@ namespace BeachesScraper
                 {
                     case "p":
                     case "P":
-                        await PerformPrint();
+                        await PerformPrintAsync();
                         break;
 
                     case "r":
                     case "R":
-                        await PerformScrape();
+                        await PerformScrapeAsync();
                         break;
                 }
 
@@ -54,9 +53,11 @@ namespace BeachesScraper
             return $"{request.StayDuration}n {request.Adults}a {request.Children}k between {request.SearchFrom:MM-dd} and {request.SearchTo:MM-dd}";
         }
 
-        private static DailyScrapeResult GetResultFromUser()
+        private static async Task<DailyScrapeResult> GetResultFromUser(CancellationToken cancellationToken = default)
         {
-            var results = GetSavedResults();
+            var dataRepository = new DataRepository();
+
+            var results = await dataRepository.LoadResultsAsync(cancellationToken);
 
             var requestGroups = results.GroupBy(r => r.Request).ToList();
 
@@ -87,9 +88,9 @@ namespace BeachesScraper
             return results.ElementAt(inputIndex);
         }
 
-        private static async Task PerformPrint()
+        private static async Task PerformPrintAsync(CancellationToken cancellationToken = default)
         {
-            var result = GetResultFromUser();
+            var result = await GetResultFromUser(cancellationToken);
 
             if (result == null)
             {
@@ -235,8 +236,10 @@ namespace BeachesScraper
             return null;
         }
 
-        private static async Task PerformScrape()
+        private static async Task PerformScrapeAsync(CancellationToken cancellationToken = default)
         {
+            var dataRepository = new DataRepository();
+
             var scrapeRequest = GetScrapeRequest();
 
             if (scrapeRequest == null)
@@ -249,14 +252,14 @@ namespace BeachesScraper
 
             var data = await GetDailyScrapeResult(scrapeRequest);
 
-            var savedData = GetSavedResults();
+            var savedData = await dataRepository.LoadResultsAsync(cancellationToken);
 
             var updatedData = new List<DailyScrapeResult>(savedData ?? [])
             {
                 data
             };
 
-            SaveResults(updatedData.OrderByDescending(d => d.Date));
+            await dataRepository.SaveResultsAsync(updatedData.OrderByDescending(d => d.Date), cancellationToken);
 
             Console.WriteLine("Scrape complete");
         }
@@ -409,26 +412,6 @@ namespace BeachesScraper
             var p = response?.TotalPriceForEntireLengthOfStay ?? 0;
 
             return $"[{FormatResultDate(response)}] {p:C0}";
-        }
-
-        private const string SaveResultsFilePath = "c:/source/beaches-scrapes.json";
-
-        private static void SaveResults(IEnumerable<DailyScrapeResult> dailyScrapeResults)
-        {
-            using var writer = new StreamWriter(SaveResultsFilePath);
-
-            var data = JsonConvert.SerializeObject(dailyScrapeResults, Formatting.Indented);
-
-            writer.Write(data);
-        }
-
-        private static IEnumerable<DailyScrapeResult>? GetSavedResults()
-        {
-            using var reader = new StreamReader(SaveResultsFilePath);
-
-            var data = reader.ReadToEnd();
-
-            return JsonConvert.DeserializeObject<IEnumerable<DailyScrapeResult>>(data);
         }
     }
 }
