@@ -4,7 +4,7 @@ using Newtonsoft.Json.Serialization;
 using System.Net;
 using System.Text;
 
-namespace BeachesScraper
+namespace BeachesScraper.Services
 {
     public class BeachesApiClient : IBeachesApiClient
     {

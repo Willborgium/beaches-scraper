@@ -1,5 +1,6 @@
 ﻿using BeachesScraper.Models;
 using BeachesScraper.Contracts;
+using BeachesScraper.Services;
 
 namespace BeachesScraper
 {
@@ -9,7 +10,7 @@ namespace BeachesScraper
         private const int ApiDelayInMilliseconds = 500;
         private const int MaxApiErrorCount = 5;
 
-        static async Task Main(string[] args)
+        static async Task Main()
         {
             var input = "";
 
@@ -48,14 +49,10 @@ namespace BeachesScraper
             }
         }
 
-        private static string GetScrapeRequestLabel(ScrapeRequest request)
-        {
-            return $"{request.StayDuration}n {request.Adults}a {request.Children}k between {request.SearchFrom:MM-dd} and {request.SearchTo:MM-dd}";
-        }
-
         private static async Task<DailyScrapeResult> GetResultFromUser(CancellationToken cancellationToken = default)
         {
             var dataRepository = new DataRepository();
+            var renderingService = new RenderingService();
 
             var results = await dataRepository.LoadResultsAsync(cancellationToken);
 
@@ -70,7 +67,7 @@ namespace BeachesScraper
                 var key = requestGroup.Key;
                 var mostRecentRun = requestGroup.OrderByDescending(r => r.Date).First().Date;
 
-                Console.WriteLine($"{index + 1:00}: {GetScrapeRequestLabel(key)} [last run {mostRecentRun:G}]");
+                Console.WriteLine($"{index + 1:00}: {renderingService.GetScrapeRequestLabel(key)} [last run {mostRecentRun:G}]");
 
                 index++;
             }
@@ -92,44 +89,7 @@ namespace BeachesScraper
         {
             var result = await GetResultFromUser(cancellationToken);
 
-            if (result == null)
-            {
-                Console.WriteLine("No results found!");
-                return;
-            }
-
-            var groups = result.Results.GroupBy(r => RoundedBestPrice(r.BestResult));
-
-            var count = Math.Min(groups.Count(), 10);
-
-            foreach (var group in groups.OrderBy(g => g.Key).Take(count))
-            {
-                Console.WriteLine($"{group.Key:C0}");
-
-                var maxPrice = group.Key * 1.1;
-
-                foreach (var item in group)
-                {
-                    var date = FormatResultDate(item.BestResult);
-                    var numRooms = item.Results.Count(r => RoundedBestPrice(r) < maxPrice);
-
-                    Console.WriteLine($"\t{date} ({numRooms} rooms under {maxPrice:C0})");
-                }
-            }
-        }
-
-        private static int RoundedBestPrice(ResortAvailabilityResponse? response)
-        {
-            if (response == null)
-            {
-                return int.MaxValue;
-            }
-
-            var value = (response?.TotalPriceForEntireLengthOfStay).Value;
-
-            var remainder = value % 250;
-
-            return value - remainder;
+            new RenderingService().PrintResultAsync(result, cancellationToken);
         }
 
         private static ScrapeRequest? GetScrapeRequest()
@@ -220,7 +180,9 @@ namespace BeachesScraper
                 SearchTo = searchTo
             };
 
-            Console.WriteLine($"Continue with search (y/n)?\n\t{GetScrapeRequestLabel(request)}");
+            var renderingService = new RenderingService();
+
+            Console.WriteLine($"Continue with search (y/n)?\n\t{renderingService.GetScrapeRequestLabel(request)}");
 
             input = "";
             while (!allowedInputs.Contains(input))
@@ -276,6 +238,8 @@ namespace BeachesScraper
             ResortAvailabilityResponse? bestResult = null;
 
             var nextApiCallTime = DateTime.MinValue;
+
+            var renderingService = new RenderingService();
 
             while (checkIn < scrapeRequest.SearchTo)
             {
@@ -359,7 +323,7 @@ namespace BeachesScraper
                         bestResult = nextBest;
                     }
 
-                    Console.WriteLine($"\t{FormatResult(bestResult)}");
+                    Console.WriteLine($"\t{renderingService.FormatResult(bestResult)}");
                 }
 
                 results.Add(new ResortAvailabilityResults
@@ -384,7 +348,7 @@ namespace BeachesScraper
 
             foreach (var result in topResults)
             {
-                Console.WriteLine($"\t{FormatResult(result)}");
+                Console.WriteLine($"\t{renderingService.FormatResult(result)}");
             }
 
             return new DailyScrapeResult
@@ -397,21 +361,6 @@ namespace BeachesScraper
                 DidErrorOut = false,
                 BestResults = topResults ?? []
             };
-        }
-
-        private static string FormatResultDate(ResortAvailabilityResponse response)
-        {
-            var ci = response?.Date;
-            var co = ci?.AddDays(response?.Length ?? 0);
-
-            return $"{ci:MM-dd} - {co:MM-dd}";
-        }
-
-        private static string FormatResult(ResortAvailabilityResponse response)
-        {
-            var p = response?.TotalPriceForEntireLengthOfStay ?? 0;
-
-            return $"[{FormatResultDate(response)}] {p:C0}";
         }
     }
 }

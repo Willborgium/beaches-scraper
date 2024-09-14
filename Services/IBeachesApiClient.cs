@@ -1,6 +1,6 @@
 ﻿using BeachesScraper.Contracts;
 
-namespace BeachesScraper
+namespace BeachesScraper.Services
 {
     public interface IBeachesApiClient
     {

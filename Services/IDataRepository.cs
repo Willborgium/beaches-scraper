@@ -1,6 +1,6 @@
 ﻿using BeachesScraper.Models;
 
-namespace BeachesScraper
+namespace BeachesScraper.Services
 {
     public interface IDataRepository
     {

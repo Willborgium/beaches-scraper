@@ -1,4 +1,6 @@
-﻿namespace BeachesScraper.Models
+﻿using BeachesScraper.Contracts;
+
+namespace BeachesScraper.Models
 {
     public class DailyScrapeResult
     {

@@ -2,7 +2,7 @@
 using Newtonsoft.Json;
 using System.Text;
 
-namespace BeachesScraper
+namespace BeachesScraper.Services
 {
     public class DataRepository : IDataRepository
     {
