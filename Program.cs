@@ -1,84 +1,12 @@
-﻿using Newtonsoft.Json;
-using Newtonsoft.Json.Converters;
+﻿using BeachesScraper.Models;
+using BeachesScraper.Contracts;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
 using System.Net;
 using System.Text;
 
 namespace BeachesScraper
 {
-    public class BeachesDateFormatter : IsoDateTimeConverter
-    {
-        public BeachesDateFormatter()
-        {
-            // Set the desired date format
-            DateTimeFormat = "yyyy-MM-dd";
-        }
-    }
-
-    public record ScrapeRequest
-    {
-        [JsonConverter(typeof(BeachesDateFormatter))]
-        public DateTime SearchFrom;
-        [JsonConverter(typeof(BeachesDateFormatter))]
-        public DateTime SearchTo;
-        public int StayDuration;
-        public int Adults;
-        public int Children;
-    }
-
-    public class ResortAvailabilityRequest
-    {
-        public string Brand { get; set; }
-        public string ResortCode { get; set; }
-        public int Adults { get; set; }
-        public int Children { get; set; }
-        [JsonConverter(typeof(BeachesDateFormatter))]
-        public DateTime CheckIn { get; set; }
-        [JsonConverter(typeof(BeachesDateFormatter))]
-        public DateTime CheckOut { get; set; }
-    }
-
-    public class ResortAvailabilityResponse
-    {
-        public int? AdultRate { get; set; }
-        public int? ChildRate { get; set; }
-        public string ResortCode { get; set; }
-        public string RoomCategoryCode { get; set; }
-        public string CountryCode { get; set; }
-        public bool? Available { get; set; }
-        [JsonConverter(typeof(BeachesDateFormatter))]
-        public DateTime? Date { get; set; }
-        public int? Length { get; set; }
-        public int? TotalPrice { get; set; }
-        public int? DaysOfBestPrice { get; set; }
-        public int? Pppn { get; set; }
-        public int? TotalPriceForEntireLengthOfStay { get; set; }
-        public int? AvgPriceAdultsAndKids { get; set; }
-        public int? AvailableRooms { get; set; }
-        public int? UnavailableDays { get; set; }
-    }
-
-    public class ResortAvailabilityResults
-    {
-        [JsonConverter(typeof(BeachesDateFormatter))]
-        public DateTime CheckIn { get; set; }
-        [JsonConverter(typeof(BeachesDateFormatter))]
-        public DateTime CheckOut { get; set; }
-        public IEnumerable<ResortAvailabilityResponse> Results { get; set; }
-        public ResortAvailabilityResponse? BestResult { get; set; }
-    }
-
-    public class DailyScrapeResult
-    {
-        public DateTime Date { get; set; }
-        public ScrapeRequest Request { get; set; }
-        public IEnumerable<ResortAvailabilityResults> Results { get; set; }
-        public ResortAvailabilityResponse? BestResponse { get; set; }
-        public int ErrorCount { get; set; }
-        public bool DidErrorOut { get; set; }
-        public IEnumerable<ResortAvailabilityResponse?> BestResults { get; set; }
-    }
-
     internal class Program
     {
         private const string BeachesAvailabilityUrl = "https://www.beaches.com/api/route/resort/rate/price/availability/";
