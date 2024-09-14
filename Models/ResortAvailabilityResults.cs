@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json;
+﻿using BeachesScraper.Contracts;
+using Newtonsoft.Json;
 
 namespace BeachesScraper.Models
 {
