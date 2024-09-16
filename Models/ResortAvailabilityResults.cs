@@ -3,13 +3,13 @@ using Newtonsoft.Json;
 
 namespace BeachesScraper.Models
 {
-    public class ResortAvailabilityResults
+    public class ResortStayPossibility
     {
         [JsonConverter(typeof(StandardDateConverter))]
         public DateTime CheckIn { get; set; }
         [JsonConverter(typeof(StandardDateConverter))]
         public DateTime CheckOut { get; set; }
-        public IEnumerable<ResortAvailabilityResponse> Results { get; set; }
-        public ResortAvailabilityResponse? BestResult { get; set; }
+        public IEnumerable<RoomAvailabilityResponse> Rooms { get; set; }
+        public RoomAvailabilityResponse? BestRoom { get; set; }
     }
 }

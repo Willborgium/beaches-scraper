@@ -2,7 +2,7 @@
 
 namespace BeachesScraper.Contracts
 {
-    public class ResortAvailabilityResponse
+    public class RoomAvailabilityResponse
     {
         public int? AdultRate { get; set; }
         public int? ChildRate { get; set; }

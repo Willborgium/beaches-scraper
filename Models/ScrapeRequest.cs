@@ -2,7 +2,7 @@
 
 namespace BeachesScraper.Models
 {
-    public record ScrapeRequest
+    public record ScrapeParameters
     {
         [JsonConverter(typeof(StandardDateConverter))]
         public DateTime SearchFrom;

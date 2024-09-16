@@ -2,7 +2,7 @@
 
 namespace BeachesScraper.Contracts
 {
-    public class ResortAvailabilityRequest
+    public class RoomAvailabilityRequest
     {
         public string Brand { get; set; }
         public string ResortCode { get; set; }

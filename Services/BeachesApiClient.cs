@@ -6,9 +6,9 @@ using System.Text;
 
 namespace BeachesScraper.Services
 {
-    public class BeachesApiClient : IBeachesApiClient
+    public class BeachesApiClient(IRenderingService renderingService) : IBeachesApiClient
     {
-        public async Task<IEnumerable<ResortAvailabilityResponse>?> GetAvailability(ResortAvailabilityRequest request, CancellationToken cancellationToken = default)
+        public async Task<IEnumerable<RoomAvailabilityResponse>?> GetAvailability(RoomAvailabilityRequest request, CancellationToken cancellationToken = default)
         {
             using var client = new HttpClient();
 
@@ -16,18 +16,18 @@ namespace BeachesScraper.Services
 
             var content = new StringContent(requestString, Encoding.UTF8, "application/json");
 
-            var response = await client.PostAsync(BeachesAvailabilityUrl, content);
+            var response = await client.PostAsync(BeachesAvailabilityUrl, content, cancellationToken);
 
             if (response.StatusCode != HttpStatusCode.OK)
             {
-                Console.WriteLine($"[{response.StatusCode}]: {response.RequestMessage}");
+                renderingService.Print($"[{response.StatusCode}]: {response.RequestMessage}");
 
                 return null;
             }
 
             var responseBody = await response.Content.ReadAsStringAsync();
 
-            return JsonConvert.DeserializeObject<IEnumerable<ResortAvailabilityResponse>>(responseBody);
+            return JsonConvert.DeserializeObject<IEnumerable<RoomAvailabilityResponse>>(responseBody);
         }
 
         private static readonly JsonSerializerSettings Settings = new()

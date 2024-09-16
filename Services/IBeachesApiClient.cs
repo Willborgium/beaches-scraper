@@ -4,6 +4,6 @@ namespace BeachesScraper.Services
 {
     public interface IBeachesApiClient
     {
-        Task<IEnumerable<ResortAvailabilityResponse>?> GetAvailability(ResortAvailabilityRequest request, CancellationToken cancellationToken = default);
+        Task<IEnumerable<RoomAvailabilityResponse>?> GetAvailability(RoomAvailabilityRequest request, CancellationToken cancellationToken = default);
     }
 }

@@ -4,7 +4,7 @@ namespace BeachesScraper.Services
 {
     public interface IDataRepository
     {
-        Task SaveResultsAsync(IEnumerable<DailyScrapeResult> dailyScrapeResults, CancellationToken cancellationToken = default);
-        Task<IEnumerable<DailyScrapeResult>> LoadResultsAsync(CancellationToken cancellationToken = default);
+        Task AppendResultAsync(ScrapeResult scrapeResult, CancellationToken cancellationToken = default);
+        Task<IEnumerable<ScrapeResult>> LoadResultsAsync(CancellationToken cancellationToken = default);
     }
 }

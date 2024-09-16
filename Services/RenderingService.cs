@@ -5,12 +5,17 @@ namespace BeachesScraper.Services
 {
     public class RenderingService : IRenderingService
     {
-        public string GetScrapeRequestLabel(ScrapeRequest request)
+        public void Print(string message)
+        {
+            Console.WriteLine(message);
+        }
+
+        public string GetScrapeRequestLabel(ScrapeParameters request)
         {
             return $"{request.StayDuration}n {request.Adults}a {request.Children}k between {request.SearchFrom:MM-dd} and {request.SearchTo:MM-dd}";
         }
 
-        public int RoundedBestPrice(ResortAvailabilityResponse? response)
+        public int RoundedBestPrice(RoomAvailabilityResponse? response)
         {
             if (response == null)
             {
@@ -24,8 +29,7 @@ namespace BeachesScraper.Services
             return value - remainder;
         }
 
-
-        public string FormatResultDate(ResortAvailabilityResponse response)
+        public string FormatResultDate(RoomAvailabilityResponse response)
         {
             var ci = response?.Date;
             var co = ci?.AddDays(response?.Length ?? 0);
@@ -33,14 +37,31 @@ namespace BeachesScraper.Services
             return $"{ci:MM-dd} - {co:MM-dd}";
         }
 
-        public string FormatResult(ResortAvailabilityResponse response)
+        public string FormatResult(RoomAvailabilityResponse response)
         {
             var p = response?.TotalPriceForEntireLengthOfStay ?? 0;
 
             return $"[{FormatResultDate(response)}] {p:C0}";
         }
 
-        public async Task PrintResultAsync(DailyScrapeResult? result, CancellationToken cancellationToken = default)
+        public string FormatScrapeGroupLabel(IGrouping<ScrapeParameters, ScrapeResult> scrapeGroup)
+        {
+            var key = scrapeGroup.Key;
+            var mostRecentRun = scrapeGroup.OrderByDescending(r => r.Date).First().Date;
+
+            return $"{GetScrapeRequestLabel(key)} [last run {mostRecentRun:G}]";
+        }
+
+        public void Wait()
+        {
+            Console.WriteLine();
+            Console.WriteLine();
+            Console.WriteLine("Press any key to continue...");
+            Console.ReadKey();
+            Console.Clear();
+        }
+
+        public async Task PrintResultAsync(ScrapeResult? result, CancellationToken cancellationToken = default)
         {
             if (result == null)
             {
@@ -48,7 +69,7 @@ namespace BeachesScraper.Services
                 return;
             }
 
-            var groups = result.Results.GroupBy(r => RoundedBestPrice(r.BestResult));
+            var groups = result.Possibilities.GroupBy(r => RoundedBestPrice(r.BestRoom));
 
             var count = Math.Min(groups.Count(), 10);
 
@@ -60,10 +81,12 @@ namespace BeachesScraper.Services
 
                 foreach (var item in group)
                 {
-                    var date = FormatResultDate(item.BestResult);
-                    var numRooms = item.Results.Count(r => RoundedBestPrice(r) < maxPrice);
+                    var date = FormatResultDate(item.BestRoom);
+                    var qualifiedRooms = item.Rooms.Where(r => RoundedBestPrice(r) < maxPrice);
+                    var numRooms = qualifiedRooms.Count();
+                    var maxQualifiedPrice = qualifiedRooms.Max(r => r.TotalPriceForEntireLengthOfStay);
 
-                    Console.WriteLine($"\t{date} ({numRooms} rooms under {maxPrice:C0})");
+                    Console.WriteLine($"\t{date} ({numRooms} rooms under {maxQualifiedPrice:C0})");
                 }
             }
         }
