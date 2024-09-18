@@ -12,7 +12,7 @@ namespace BeachesScraper.Services
 
         public string GetScrapeRequestLabel(ScrapeParameters request)
         {
-            return $"{request.StayDuration}n {request.Adults}a {request.Children}k between {request.SearchFrom:MM-dd} and {request.SearchTo:MM-dd}";
+            return $"{request.ResortCode} {request.StayDuration}n {request.Adults}a {request.Children}k between {request.SearchFrom:MM-dd} and {request.SearchTo:MM-dd}";
         }
 
         public int RoundedBestPrice(RoomAvailabilityResponse? response)

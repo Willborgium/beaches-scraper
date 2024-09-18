@@ -1,23 +1,37 @@
-﻿using BeachesScraper.Models;
+﻿using BeachesScraper.Contracts;
+using BeachesScraper.Models;
 
 namespace BeachesScraper.Services
 {
     public class UserInputService(IRenderingService renderingService) : IUserInputService
     {
+        private static readonly ScrapeParameters DefaultScrapeParameters = new()
+        {
+            SearchFrom = new DateTime(2025, 2, 17),
+            SearchTo = new DateTime(2025, 6, 1),
+            StayDuration = 7,
+            Adults = 3,
+            Children = 2,
+            ResortCode = ResortCodes.BeachesTurksAndCaicos
+        };
+
+        private static readonly ScrapeParameters TestScrapeParameters = new()
+        {
+            SearchFrom = new DateTime(2025, 4, 1),
+            SearchTo = new DateTime(2025, 4, 7),
+            StayDuration = 7,
+            Adults = 2,
+            Children = 2,
+            ResortCode = ResortCodes.BeachesTurksAndCaicos
+        };
+
         public ScrapeParameters? GetScrapeRequest()
         {
             var input = GetYesNoQuit("Use default criteria?");
 
             if (Yes(input))
             {
-                return new ScrapeParameters
-                {
-                    SearchFrom = new DateTime(2025, 2, 17),
-                    SearchTo = new DateTime(2025, 6, 1),
-                    StayDuration = 7,
-                    Adults = 3,
-                    Children = 2
-                };
+                return TestScrapeParameters;
             }
             else if (Quit(input))
             {
@@ -29,6 +43,7 @@ namespace BeachesScraper.Services
             var duration = GetInt("Duration", 3, 14);
             var searchFrom = GetDateTime("Search start date", DateTime.Today, DateTime.Today.AddYears(1));
             var searchTo = GetDateTime("Search end date", searchFrom.AddDays(1), DateTime.Today.AddYears(1));
+            var resortCode = GetOption(ResortCodes.All);
 
             var request = new ScrapeParameters
             {
@@ -36,7 +51,8 @@ namespace BeachesScraper.Services
                 Children = numKids,
                 StayDuration = duration,
                 SearchFrom = searchFrom,
-                SearchTo = searchTo
+                SearchTo = searchTo,
+                ResortCode = resortCode
             };
 
             var renderingService = new RenderingService();

@@ -11,5 +11,6 @@ namespace BeachesScraper.Models
         public int StayDuration;
         public int Adults;
         public int Children;
+        public string ResortCode;
     }
 }

@@ -1,5 +1,6 @@
 ﻿using BeachesScraper.Contracts;
 using BeachesScraper.Models;
+using System.Diagnostics;
 
 namespace BeachesScraper.Services
 {
@@ -15,7 +16,6 @@ namespace BeachesScraper.Services
             var errorCount = 0;
 
             var results = new List<ResortStayPossibility>();
-            RoomAvailabilityResponse? bestResult = null;
 
             var nextApiCallTime = DateTime.MinValue;
 
@@ -26,7 +26,7 @@ namespace BeachesScraper.Services
                 var request = new RoomAvailabilityRequest
                 {
                     Brand = "B",
-                    ResortCode = "BTC",
+                    ResortCode = scrapeParameters.ResortCode,
                     Adults = scrapeParameters.Adults,
                     Children = scrapeParameters.Children,
                     CheckIn = checkIn,
@@ -35,14 +35,15 @@ namespace BeachesScraper.Services
 
                 renderingService.Print($"Checking {checkIn:MM-dd} - {checkOut:MM-dd}");
 
-                while (DateTime.Now < nextApiCallTime)
-                {
-                    Thread.Sleep(ApiWaitInMilliseconds);
-                }
+                while (DateTime.Now < nextApiCallTime) { await Task.Yield(); }
+
+                nextApiCallTime = DateTime.Now.AddMilliseconds(ApiDelayInMilliseconds);
+
+                var stopwatch = Stopwatch.StartNew();
 
                 var response = await beachesApiClient.GetAvailability(request, cancellationToken);
 
-                nextApiCallTime = DateTime.Now.AddMilliseconds(ApiDelayInMilliseconds);
+                Console.WriteLine($"\t\tTook {stopwatch.Elapsed.TotalSeconds:0.000} seconds");
 
                 if (response == null)
                 {
@@ -52,15 +53,7 @@ namespace BeachesScraper.Services
                     {
                         renderingService.Print($"Exiting after {MaxApiErrorCount} API errors");
 
-                        return new ScrapeResult
-                        {
-                            Date = DateTime.Now,
-                            Parameters = scrapeParameters,
-                            Possibilities = results,
-                            BestRoom = bestResult,
-                            ErrorCount = errorCount,
-                            DidErrorOut = true
-                        };
+                        return GetScrapeResult(results, scrapeParameters, errorCount);
                     }
 
                     continue;
@@ -72,8 +65,6 @@ namespace BeachesScraper.Services
                     .ToList();
                 var count = availableResults.Count;
 
-                RoomAvailabilityResponse? nextBest = null;
-
                 if (count == 0)
                 {
                     renderingService.Print("\tNo rooms found!");
@@ -84,24 +75,6 @@ namespace BeachesScraper.Services
                     var min = availableResults.Min(r => r.TotalPriceForEntireLengthOfStay);
 
                     renderingService.Print($"\tFound {count} rooms from {min:C0} to {max:C0}");
-
-                    nextBest = availableResults.FirstOrDefault();
-
-                    if (bestResult == null)
-                    {
-                        bestResult = nextBest;
-
-                    }
-                    else if (nextBest != null && nextBest.TotalPriceForEntireLengthOfStay < bestResult.TotalPriceForEntireLengthOfStay)
-                    {
-                        var price = nextBest.TotalPriceForEntireLengthOfStay;
-
-                        renderingService.Print($"\t$$$ new best rate $$$");
-
-                        bestResult = nextBest;
-                    }
-
-                    renderingService.Print($"\t{renderingService.FormatResult(bestResult)}");
                 }
 
                 results.Add(new ResortStayPossibility
@@ -109,40 +82,43 @@ namespace BeachesScraper.Services
                     CheckIn = checkIn,
                     CheckOut = checkOut,
                     Rooms = availableResults.Take(5),
-                    BestRoom = nextBest
+                    BestRoom = availableResults.FirstOrDefault()
                 });
 
                 checkIn = checkIn.AddDays(1);
             }
 
-            var topCount = (int)(results.Count * .1);
+            return GetScrapeResult(results, scrapeParameters, errorCount);
+        }
 
-            var topResults = results
-                .OrderBy(r => r.BestRoom?.TotalPrice ?? int.MaxValue)
-                .Take(topCount)
-                .Select(r => r.BestRoom);
+        private ScrapeResult GetScrapeResult(IEnumerable<ResortStayPossibility> results, ScrapeParameters scrapeParameters, int errorCount)
+        {
+            var orderedResults = results.OrderBy(r => r.BestRoom?.TotalPrice ?? int.MaxValue);
+
+            var topCount = (int)(results.Count() * .1);
+            var topRooms = orderedResults.Take(topCount).Select(r => r.BestRoom) ?? [];
 
             renderingService.Print($"Top {topCount} results:");
 
-            foreach (var result in topResults)
+            foreach (var room in topRooms)
             {
-                renderingService.Print($"\t{renderingService.FormatResult(result)}");
+                renderingService.Print($"\t{renderingService.FormatResult(room)}");
             }
 
             return new ScrapeResult
             {
                 Date = DateTime.Now,
                 Parameters = scrapeParameters,
-                Possibilities = results.OrderBy(r => r.BestRoom?.TotalPrice ?? int.MaxValue).ToList(),
-                BestRoom = bestResult,
+                Possibilities = orderedResults,
+                BestRoom = topRooms.FirstOrDefault(),
                 ErrorCount = errorCount,
-                DidErrorOut = false,
-                BestRooms = topResults ?? []
+                DidErrorOut = errorCount == MaxApiErrorCount,
+                BestRooms = topRooms
             };
         }
 
-        private const int ApiWaitInMilliseconds = 100;
-        private const int ApiDelayInMilliseconds = 500;
+        private const int ApiWaitInMilliseconds = 50;
+        private const int ApiDelayInMilliseconds = 100;
         private const int MaxApiErrorCount = 5;
     }
 }
