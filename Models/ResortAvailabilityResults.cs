@@ -1,5 +1,4 @@
-﻿using BeachesScraper.Contracts;
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
 
 namespace BeachesScraper.Models
 {
@@ -9,7 +8,7 @@ namespace BeachesScraper.Models
         public DateTime CheckIn { get; set; }
         [JsonConverter(typeof(StandardDateConverter))]
         public DateTime CheckOut { get; set; }
-        public IEnumerable<RoomAvailabilityResponse> Rooms { get; set; }
-        public RoomAvailabilityResponse? BestRoom { get; set; }
+        public IEnumerable<Room> Rooms { get; set; }
+        public Room? BestRoom { get; set; }
     }
 }

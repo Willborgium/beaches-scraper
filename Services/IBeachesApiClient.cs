@@ -1,4 +1,4 @@
-﻿using BeachesScraper.Contracts;
+﻿using BeachesScraper.Contracts.Beaches;
 
 namespace BeachesScraper.Services
 {

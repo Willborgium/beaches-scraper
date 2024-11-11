@@ -1,49 +1,50 @@
-﻿using BeachesScraper.Contracts;
+﻿using Beaches = BeachesScraper.Contracts.Beaches;
+using GWL = BeachesScraper.Contracts.GreatWolfLodge;
 using BeachesScraper.Models;
 
 namespace BeachesScraper.Services
 {
     public class UserInputService(IRenderingService renderingService) : IUserInputService
     {
-        private static readonly ScrapeParameters DefaultScrapeParameters = new()
+        private static readonly IReadOnlyDictionary<Resort, ScrapeParameters> DefaultParameters = new Dictionary<Resort, ScrapeParameters>()
         {
-            SearchFrom = new DateTime(2025, 2, 17),
-            SearchTo = new DateTime(2025, 6, 1),
-            StayDuration = 7,
-            Adults = 3,
-            Children = 2,
-            ResortCode = ResortCodes.BeachesTurksAndCaicos
+            {
+                Resort.Beaches,
+                new()
+                {
+                    SearchFrom = new DateTime(2025, 2, 17),
+                    SearchTo = new DateTime(2025, 6, 1),
+                    StayDuration = 7,
+                    Adults = 3,
+                    Children = 2,
+                    Resort = Resort.Beaches,
+                    ResortCode = Beaches.ResortCodes.BeachesTurksAndCaicos
+                }
+            },
+            {
+                Resort.GreatWolfLodge,
+                new()
+                {
+                    SearchFrom = new DateTime(2025, 7, 1),
+                    SearchTo = new DateTime(2025, 9, 1),
+                    StayDuration = 3,
+                    Adults = 2,
+                    Children = 2,
+                    ChildrenAges = [4, 7],
+                    Resort = Resort.GreatWolfLodge,
+                    ResortCode = GWL.ResortCodes.Mashantucket
+                }
+            },
         };
 
-        private static readonly ScrapeParameters TestScrapeParameters = new()
+        private ScrapeParameters? GetBeachesScrapeRequest()
         {
-            SearchFrom = new DateTime(2025, 4, 1),
-            SearchTo = new DateTime(2025, 4, 7),
-            StayDuration = 7,
-            Adults = 2,
-            Children = 2,
-            ResortCode = ResortCodes.BeachesTurksAndCaicos
-        };
-
-        public ScrapeParameters? GetScrapeRequest()
-        {
-            var input = GetYesNoQuit("Use default criteria?");
-
-            if (Yes(input))
-            {
-                return TestScrapeParameters;
-            }
-            else if (Quit(input))
-            {
-                return null;
-            }
-
             var numKids = GetInt("Number of kids", 0, 10);
             var numAdults = GetInt("Number of adults", 0, 10);
             var duration = GetInt("Duration", 3, 14);
             var searchFrom = GetDateTime("Search start date", DateTime.Today, DateTime.Today.AddYears(1));
             var searchTo = GetDateTime("Search end date", searchFrom.AddDays(1), DateTime.Today.AddYears(1));
-            var resortCode = GetOption(ResortCodes.All);
+            var resortCode = GetOption(Beaches.ResortCodes.All);
 
             var request = new ScrapeParameters
             {
@@ -52,6 +53,7 @@ namespace BeachesScraper.Services
                 StayDuration = duration,
                 SearchFrom = searchFrom,
                 SearchTo = searchTo,
+                Resort = Resort.Beaches,
                 ResortCode = resortCode
             };
 
@@ -59,14 +61,87 @@ namespace BeachesScraper.Services
 
             renderingService.Print(renderingService.GetScrapeRequestLabel(request));
 
-            input = GetYesNoQuit("Continue with search");
+            var doContinue = GetYesNoQuit("Continue with search");
 
-            if (Yes(input))
+            if (Yes(doContinue))
             {
                 return request;
             }
 
             return null;
+        }
+
+        private ScrapeParameters? GetGreatWolfLodgeScrapeRequest()
+        {
+            var numKids = GetInt("Number of kids", 0, 5);
+            var kidsAges = new List<int>();
+
+            while (kidsAges.Count < numKids)
+            {
+                var age = GetInt($"Kid {kidsAges.Count + 1} age", 1, 18);
+                kidsAges.Add(age);
+            }
+            
+            var numAdults = GetInt("Number of adults", 0, 10);
+
+            var duration = GetInt("Duration", 1, 14);
+            var searchFrom = GetDateTime("Search start date", DateTime.Today, DateTime.Today.AddYears(1));
+            var searchTo = GetDateTime("Search end date", searchFrom.AddDays(1), DateTime.Today.AddYears(1));
+            var resortCode = GetOption(GWL.ResortCodes.All);
+
+            var request = new ScrapeParameters
+            {
+                Adults = numAdults,
+                Children = numKids,
+                ChildrenAges = kidsAges,
+                StayDuration = duration,
+                SearchFrom = searchFrom,
+                SearchTo = searchTo,
+                Resort = Resort.GreatWolfLodge,
+                ResortCode = resortCode
+            };
+
+            var renderingService = new RenderingService();
+
+            renderingService.Print(renderingService.GetScrapeRequestLabel(request));
+
+            var doContinue = GetYesNoQuit("Continue with search");
+
+            if (Yes(doContinue))
+            {
+                return request;
+            }
+
+            return null;
+        }
+
+        public ScrapeParameters? GetScrapeRequest()
+        {
+            var resort = GetOption(All<Resort>());
+
+            var useDefault = GetYesNoQuit("Use default criteria?");
+
+            if (Yes(useDefault))
+            {
+                return DefaultParameters[resort];
+            }
+            else if (Quit(useDefault))
+            {
+                return null;
+            }
+
+            return resort switch
+            {
+                Resort.Beaches => GetBeachesScrapeRequest(),
+                Resort.GreatWolfLodge => GetGreatWolfLodgeScrapeRequest(),
+                _ => null,
+            };
+        }
+
+        public static IEnumerable<T> All<T>()
+            where T : struct, Enum
+        {
+            return Enum.GetValues<T>();
         }
 
         public async Task<ScrapeResult> GetResultAsync(IEnumerable<ScrapeResult> scrapeResults, CancellationToken cancellationToken = default)
@@ -126,9 +201,9 @@ namespace BeachesScraper.Services
             return value;
         }
 
-        private static readonly string[] YesNoQuitValues = { "y", "Y", "n", "N", "q", "Q" };
+        private static readonly string[] YesNoQuitValues = ["y", "Y", "n", "N", "q", "Q"];
 
-        private string GetYesNoQuit(string prompt)
+        public string GetYesNoQuit(string prompt)
         {
             renderingService.Print($"{prompt} (y/n/q)");
 
@@ -142,8 +217,8 @@ namespace BeachesScraper.Services
             return value;
         }
 
-        private static bool Yes(string value) => value == "Y" || value == "y";
-        private static bool No(string value) => value == "N" || value == "n";
-        private static bool Quit(string value) => value == "Q" || value == "q";
+        public bool Yes(string value) => value == "Y" || value == "y";
+        public bool No(string value) => value == "N" || value == "n";
+        public bool Quit(string value) => value == "Q" || value == "q";
     }
 }

@@ -1,15 +1,32 @@
-﻿using BeachesScraper.Contracts;
+﻿using BeachesScraper.Contracts.Beaches;
+using BeachesScraper.Contracts.GreatWolfLodge;
 using BeachesScraper.Models;
 using System.Diagnostics;
 
 namespace BeachesScraper.Services
 {
+
     public class ScrapingService(
-        IBeachesApiClient beachesApiClient,
+        IResortApiAdapter<RoomAvailabilityRequest> beachesApiAdapter,
+        IResortApiAdapter<AvailabilityRequest> greatWolfLodgeApiAdapter,
         IRenderingService renderingService
         ) : IScrapingService
     {
         public async Task<ScrapeResult> RunScrapeAsync(ScrapeParameters scrapeParameters, CancellationToken cancellationToken = default)
+        {
+            switch (scrapeParameters.Resort)
+            {
+                case Resort.Beaches:
+                    return await RunScrapeAsync(beachesApiAdapter, scrapeParameters, cancellationToken);
+
+                case Resort.GreatWolfLodge:
+                    return await RunScrapeAsync(greatWolfLodgeApiAdapter, scrapeParameters, cancellationToken);
+            }
+
+            return null;
+        }
+
+        private async Task<ScrapeResult> RunScrapeAsync<TRequest>(IResortApiAdapter<TRequest> apiAdapter, ScrapeParameters scrapeParameters, CancellationToken cancellationToken = default)
         {
             var checkIn = scrapeParameters.SearchFrom;
 
@@ -23,15 +40,7 @@ namespace BeachesScraper.Services
             {
                 var checkOut = checkIn.AddDays(scrapeParameters.StayDuration);
 
-                var request = new RoomAvailabilityRequest
-                {
-                    Brand = "B",
-                    ResortCode = scrapeParameters.ResortCode,
-                    Adults = scrapeParameters.Adults,
-                    Children = scrapeParameters.Children,
-                    CheckIn = checkIn,
-                    CheckOut = checkOut
-                };
+                var request = apiAdapter.GetRequest(checkIn, checkOut, scrapeParameters);
 
                 renderingService.Print($"Checking {checkIn:MM-dd} - {checkOut:MM-dd}");
 
@@ -41,11 +50,11 @@ namespace BeachesScraper.Services
 
                 var stopwatch = Stopwatch.StartNew();
 
-                var response = await beachesApiClient.GetAvailability(request, cancellationToken);
+                var rooms = await apiAdapter.GetRoomsAsync(request, cancellationToken);
 
                 Console.WriteLine($"\t\tTook {stopwatch.Elapsed.TotalSeconds:0.000} seconds");
 
-                if (response == null)
+                if (rooms == null)
                 {
                     errorCount++;
 
@@ -59,9 +68,8 @@ namespace BeachesScraper.Services
                     continue;
                 }
 
-                var availableResults = response
-                    .Where(r => r.Available == true)
-                    .OrderBy(r => r.TotalPriceForEntireLengthOfStay)
+                var availableResults = rooms
+                    .OrderBy(r => r.Cost)
                     .ToList();
                 var count = availableResults.Count;
 
@@ -71,8 +79,8 @@ namespace BeachesScraper.Services
                 }
                 else
                 {
-                    var max = availableResults.Max(r => r.TotalPriceForEntireLengthOfStay);
-                    var min = availableResults.Min(r => r.TotalPriceForEntireLengthOfStay);
+                    var max = availableResults.Max(r => r.Cost);
+                    var min = availableResults.Min(r => r.Cost);
 
                     renderingService.Print($"\tFound {count} rooms from {min:C0} to {max:C0}");
                 }
@@ -81,7 +89,7 @@ namespace BeachesScraper.Services
                 {
                     CheckIn = checkIn,
                     CheckOut = checkOut,
-                    Rooms = availableResults.Take(5),
+                    Rooms = availableResults,
                     BestRoom = availableResults.FirstOrDefault()
                 });
 
@@ -93,7 +101,7 @@ namespace BeachesScraper.Services
 
         private ScrapeResult GetScrapeResult(IEnumerable<ResortStayPossibility> results, ScrapeParameters scrapeParameters, int errorCount)
         {
-            var orderedResults = results.OrderBy(r => r.BestRoom?.TotalPrice ?? int.MaxValue);
+            var orderedResults = results.OrderBy(r => r.BestRoom?.Cost ?? int.MaxValue);
 
             var topCount = (int)(results.Count() * .1);
             var topRooms = orderedResults.Take(topCount).Select(r => r.BestRoom) ?? [];
@@ -117,7 +125,6 @@ namespace BeachesScraper.Services
             };
         }
 
-        private const int ApiWaitInMilliseconds = 50;
         private const int ApiDelayInMilliseconds = 100;
         private const int MaxApiErrorCount = 5;
     }

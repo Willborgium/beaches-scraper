@@ -35,7 +35,14 @@ namespace BeachesScraper
             var scrapeResults = await dataRepository.LoadResultsAsync(cancellationToken);
             var scrapeResult = await userInputService.GetResultAsync(scrapeResults, cancellationToken);
 
-            await renderingService.PrintResultAsync(scrapeResult, cancellationToken);
+            var includeDetails = userInputService.GetYesNoQuit("Include details");
+
+            if (userInputService.Quit(includeDetails))
+            {
+                return;
+            }
+
+            await renderingService.PrintResultAsync(scrapeResult, userInputService.Yes(includeDetails), cancellationToken);
         }
 
         private async Task PerformScrapeAsync(CancellationToken cancellationToken = default)
@@ -60,6 +67,6 @@ namespace BeachesScraper
         private const string Print = "Print";
         private const string Rerun = "Rerun";
         private const string Quit = "Quit";
-        private static readonly string[] MenuOptions = { Print, Rerun, Quit };
+        private static readonly string[] MenuOptions = [Print, Rerun, Quit];
     }
 }

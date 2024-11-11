@@ -2,6 +2,12 @@
 
 namespace BeachesScraper.Models
 {
+    public enum Resort
+    {
+        Beaches,
+        GreatWolfLodge
+    }
+
     public record ScrapeParameters
     {
         [JsonConverter(typeof(StandardDateConverter))]
@@ -11,6 +17,8 @@ namespace BeachesScraper.Models
         public int StayDuration;
         public int Adults;
         public int Children;
+        public IEnumerable<int> ChildrenAges;
+        public Resort Resort;
         public string ResortCode;
     }
 }
